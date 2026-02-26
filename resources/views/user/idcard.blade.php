@@ -199,6 +199,9 @@
         <a href="{{ route('user.idcard.download') }}">
             <span class="icon">💾</span>다운로드
         </a>
+        <a href="{{ route('user.scanner') }}">
+            <span class="icon">🔍</span>PC 로그인
+        </a>
         <a href="{{ route('user.guide') }}">
             <span class="icon">📋</span>안내
         </a>
