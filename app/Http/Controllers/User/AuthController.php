@@ -43,4 +43,29 @@ class AuthController extends Controller
         session()->forget(['employee_id', 'employee_name', 'employee_number']);
         return redirect()->route('user.login');
     }
+
+    public function showChangePasswordForm()
+    {
+        return view('user.password');
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password'     => 'required|string|min:4|confirmed',
+        ]);
+
+        $employee = Employee::find(session('employee_id'));
+
+        if (!Hash::check($request->current_password, $employee->password)) {
+            return back()->with('error', '현재 비밀번호가 일치하지 않습니다.');
+        }
+
+        $employee->update(['password' => Hash::make($request->new_password)]);
+
+        // 뷰에 알림을 띄우기 위해 session flash 사용
+        return redirect()->route('user.idcard')
+            ->with('success', '비밀번호가 성공적으로 변경되었습니다.');
+    }
 }
