@@ -72,7 +72,7 @@ class IdCardController extends Controller
 
         $employee->refresh();
 
-        $imageData = $this->renderer->renderImage($employee);
+        $imageData = $this->renderer->renderImage($employee, true);
 
         $filename = $employee->name . '_사원증.png';
         $encodedFilename = rawurlencode($filename);
