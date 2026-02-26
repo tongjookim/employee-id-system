@@ -344,6 +344,8 @@
         if (refreshing) return;
         refreshing = true;
         document.getElementById('timerText').textContent = '갱신중…';
+        // ★ 추가: 확대된 QR 화면(오버레이)의 텍스트도 '갱신중…'으로 변경
+        document.getElementById('overlayTimerText').textContent = '갱신중…';
 
         fetch('{{ route("user.idcard.qr-data") }}', {
             headers: {
@@ -368,6 +370,9 @@
     }
 
     function updateTimer() {
+        // ★ 추가: 통신(갱신) 중일 때는 타이머 UI 업데이트를 중단하여 깜빡임 방지
+        if (refreshing) return;
+        
         const now = new Date();
         const remaining = Math.max(0, Math.floor((qrExpiresAt - now) / 1000));
         const pct = Math.max(0, (remaining / QR_TTL) * 100);
