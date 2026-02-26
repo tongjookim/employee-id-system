@@ -224,35 +224,28 @@
     </div>
 
     <script>
-    // ══════════════════════════════════════
-    // ★ 보안: 키보드 단축키 차단
+// ══════════════════════════════════════
+    // ★ 보안: 키보드 단축키 및 이미지 저장 차단
     // ══════════════════════════════════════
     document.addEventListener('keydown', function(e) {
-        // Ctrl+C, Ctrl+A, Ctrl+S, Ctrl+P, Ctrl+Shift+I, F12
-        if (e.ctrlKey && ['c','a','s','p','u'].includes(e.key.toLowerCase())) {
-            e.preventDefault(); return false;
-        }
-        if (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase())) {
-            e.preventDefault(); return false;
-        }
-        if (e.key === 'F12' || e.key === 'PrintScreen') {
-            e.preventDefault(); return false;
-        }
+        if (e.ctrlKey && ['c','a','s','p','u'].includes(e.key.toLowerCase())) { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase())) { e.preventDefault(); return false; }
+        if (e.key === 'F12' || e.key === 'PrintScreen') { e.preventDefault(); return false; }
     });
-
-    // 터치 길게 누르기 차단 (iOS/Android 이미지 저장 방지)
     document.addEventListener('touchstart', function(e) {
         if (e.target.tagName === 'IMG') e.preventDefault();
     }, { passive: false });
 
     // ══════════════════════════════════════
-    // QR 시스템
+    // QR 시스템 및 타이머
     // ══════════════════════════════════════
     const QR_TTL = {{ $qrTtl }};
-    let qrExpiresAt = new Date('{{ $qrExpiresAt }}');
+    
+    // [핵심 수정] 서버의 절대 시간이 아닌, '기기 현재 시간 + 남은 초'로 만료 시간 설정 (기기 시간 오류 무시)
+    let qrExpiresAt = new Date(Date.now() + ({{ $qrRemaining }} * 1000));
+    
     let qrImageSrc = '';
     let refreshing = false;
-
     const renderData = @json($renderData);
     const bgImg = document.getElementById('bgImg');
     const overlay = document.getElementById('overlay');
@@ -261,30 +254,20 @@
 
     // 카드 실드 클릭 → QR 확대
     document.getElementById('cardShield').addEventListener('click', function(e) {
-        // QR 영역 클릭 감지
         const card = document.getElementById('idCard');
-        const rect = card.getBoundingClientRect();
         const scale = card.offsetWidth / renderData.template.canvas_width;
+        const clickX = (e.clientX - card.getBoundingClientRect().left) / scale;
+        const clickY = (e.clientY - card.getBoundingClientRect().top) / scale;
 
-        const clickX = (e.clientX - rect.left) / scale;
-        const clickY = (e.clientY - rect.top) / scale;
-
-        // QR 필드 찾기
         const qrField = renderData.fields.find(f => f.field_type === 'qr_code');
         if (qrField) {
-            const qx = qrField.pos_x, qy = qrField.pos_y;
-            const qw = qrField.width || 180, qh = qrField.height || 180;
-            if (clickX >= qx && clickX <= qx + qw && clickY >= qy && clickY <= qy + qh) {
-                showQr();
-            }
+            const qx = qrField.pos_x, qy = qrField.pos_y, qw = qrField.width || 180, qh = qrField.height || 180;
+            if (clickX >= qx && clickX <= qx + qw && clickY >= qy && clickY <= qy + qh) showQr();
         }
     });
 
     function renderFields() {
-        const card = document.getElementById('idCard');
-        const displayW = card.offsetWidth;
-        const realW = renderData.template.canvas_width;
-        const scale = displayW / realW;
+        const scale = document.getElementById('idCard').offsetWidth / renderData.template.canvas_width;
         overlay.innerHTML = '';
 
         renderData.fields.forEach(f => {
@@ -296,23 +279,13 @@
                 el.style.fontSize = Math.max(10, f.font_size * scale) + 'px';
                 el.style.color = f.font_color || '#333';
                 el.style.fontWeight = f.is_bold ? '700' : '400';
-
-                const sx = f.pos_x * scale;
-                const sy = f.pos_y * scale;
-                el.style.top = sy + 'px';
-                el.style.left = sx + 'px';
+                el.style.top = (f.pos_y * scale) + 'px';
+                el.style.left = (f.pos_x * scale) + 'px';
 
                 const align = f.text_align || 'center';
-                if (align === 'center') {
-                    el.style.transform = 'translateX(-50%)';
-                    el.style.textAlign = 'center';
-                } else if (align === 'right') {
-                    el.style.transform = 'translateX(-100%)';
-                    el.style.textAlign = 'right';
-                } else {
-                    el.style.textAlign = 'left';
-                }
-            } else if (f.field_type === 'image') {
+                if (align === 'center') { el.style.transform = 'translateX(-50%)'; el.style.textAlign = 'center'; }
+                else if (align === 'right') { el.style.transform = 'translateX(-100%)'; el.style.textAlign = 'right'; }
+            } else {
                 el.style.left = (f.pos_x * scale) + 'px';
                 el.style.top = (f.pos_y * scale) + 'px';
                 if (f.width) el.style.width = (f.width * scale) + 'px';
@@ -320,18 +293,8 @@
                 const img = document.createElement('img');
                 img.src = f.value;
                 img.draggable = false;
+                if (f.field_type === 'qr_code') { img.id = 'cardQrImg'; qrImageSrc = f.value; }
                 el.appendChild(img);
-            } else if (f.field_type === 'qr_code') {
-                el.style.left = (f.pos_x * scale) + 'px';
-                el.style.top = (f.pos_y * scale) + 'px';
-                if (f.width) el.style.width = (f.width * scale) + 'px';
-                if (f.height) el.style.height = (f.height * scale) + 'px';
-                const img = document.createElement('img');
-                img.src = f.value;
-                img.id = 'cardQrImg';
-                img.draggable = false;
-                el.appendChild(img);
-                qrImageSrc = f.value;
             }
             overlay.appendChild(el);
         });
@@ -339,79 +302,81 @@
 
     window.addEventListener('resize', renderFields);
 
-    // ── QR 자동 갱신 ──
+    function updateTimer() {
+        if (refreshing) return;
+
+        const now = new Date();
+        const remaining = Math.max(0, Math.floor((qrExpiresAt - now) / 1000));
+        const pct = Math.max(0, (remaining / QR_TTL) * 100);
+        const isExpiring = remaining <= 3 && remaining > 0;
+
+        const fill = document.getElementById('timerFill');
+        const text = document.getElementById('timerText');
+        if (fill) { fill.style.width = pct + '%'; fill.classList.toggle('expiring', isExpiring); }
+        if (text) { text.textContent = remaining + '초'; text.classList.toggle('expiring', isExpiring); }
+
+        const ringFill = document.getElementById('ringFill');
+        const overlayText = document.getElementById('overlayTimerText');
+        if (ringFill) { ringFill.style.strokeDashoffset = 94.25 * (1 - remaining / QR_TTL); ringFill.classList.toggle('expiring', isExpiring); }
+        if (overlayText) { overlayText.textContent = remaining + '초'; }
+
+        // 타이머가 0이 되면 즉시 갱신 함수 호출
+        if (remaining <= 0) refreshQr();
+    }
+
     function refreshQr() {
         if (refreshing) return;
         refreshing = true;
+        
         document.getElementById('timerText').textContent = '갱신중…';
-        // ★ 추가: 확대된 QR 화면(오버레이)의 텍스트도 '갱신중…'으로 변경
-        document.getElementById('overlayTimerText').textContent = '갱신중…';
+        const overlayText = document.getElementById('overlayTimerText');
+        if (overlayText) overlayText.textContent = '갱신중…';
 
-        // [수정 1] URL 끝에 타임스탬프(?_t=...)를 붙여 브라우저 캐싱을 완벽히 차단합니다.
+        // URL 끝에 타임스탬프를 붙여 브라우저 캐싱 완벽 차단
         fetch('{{ route("user.idcard.qr-data") }}?_t=' + Date.now(), {
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Cache-Control': 'no-cache',
-            },
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
             cache: 'no-store'
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('Network response error');
+            return r.json();
+        })
         .then(data => {
             qrImageSrc = data.qr_image;
-            qrExpiresAt = new Date(data.expires_at);
+            
+            // [핵심 수정] 새 QR을 수신한 시점의 내 기기 시간 + 서버가 알려준 생존시간(10초)
+            const ttl = data.ttl_seconds || QR_TTL;
+            qrExpiresAt = new Date(Date.now() + (ttl * 1000));
 
-            // [수정 2] 화면 리사이즈 시 예전 QR로 덮어씌워지는 것을 막기 위해 원본 데이터도 갱신합니다.
-            const qrField = renderData.fields.find(f => f.field_type === 'qr_code');
-            if (qrField) qrField.value = data.qr_image;
+            // 데이터 동기화 (화면 리사이즈 시 예전 QR로 되돌아가는 현상 방지)
+            if (typeof renderData !== 'undefined' && renderData.fields) {
+                const qrField = renderData.fields.find(f => f.field_type === 'qr_code');
+                if (qrField) qrField.value = data.qr_image;
+            }
 
-            // DOM 이미지 교체
+            // 화면상 이미지 즉시 교체
             const cardQr = document.getElementById('cardQrImg');
             if (cardQr) cardQr.src = data.qr_image;
-            document.getElementById('qrLargeImg').src = data.qr_image;
+            const largeQr = document.getElementById('qrLargeImg');
+            if (largeQr) largeQr.src = data.qr_image;
 
             refreshing = false;
             updateTimer();
         })
-        .catch(() => { refreshing = false; setTimeout(refreshQr, 2000); });
-    }
-
-    function updateTimer() {
-        // ★ 추가: 통신(갱신) 중일 때는 타이머 UI 업데이트를 중단하여 깜빡임 방지
-        if (refreshing) return;
-        
-        const now = new Date();
-        const remaining = Math.max(0, Math.floor((qrExpiresAt - now) / 1000));
-        const pct = Math.max(0, (remaining / QR_TTL) * 100);
-        const isExpiring = remaining <= 3;
-
-        const fill = document.getElementById('timerFill');
-        const text = document.getElementById('timerText');
-        fill.style.width = pct + '%';
-        text.textContent = remaining + '초';
-        fill.classList.toggle('expiring', isExpiring);
-        text.classList.toggle('expiring', isExpiring);
-
-        const ringFill = document.getElementById('ringFill');
-        const overlayText = document.getElementById('overlayTimerText');
-        ringFill.style.strokeDashoffset = 94.25 * (1 - remaining / QR_TTL);
-        ringFill.classList.toggle('expiring', isExpiring);
-        overlayText.textContent = remaining + '초';
-
-        if (remaining <= 0) refreshQr();
+        .catch((e) => { 
+            console.error('QR Refresh Error:', e);
+            refreshing = false; 
+            setTimeout(refreshQr, 2000); // 실패 시 2초 뒤 재시도하여 무한 멈춤 방지
+        });
     }
 
     setInterval(updateTimer, 1000);
-    updateTimer();
+    updateTimer(); // 페이지 로드 즉시 타이머 1회 실행
 
-    function showQr() {
-        document.getElementById('qrLargeImg').src = qrImageSrc;
-        document.getElementById('qrOverlay').classList.add('show');
-    }
-    function hideQr() {
-        document.getElementById('qrOverlay').classList.remove('show');
-    }
+    function showQr() { document.getElementById('qrLargeImg').src = qrImageSrc; document.getElementById('qrOverlay').classList.add('show'); }
+    function hideQr() { document.getElementById('qrOverlay').classList.remove('show'); }
 
-    // 흔들기
+    // 스마트폰 흔들기 감지
     if (window.DeviceMotionEvent) {
         let lastShake = 0, lastX = 0, lastY = 0, lastZ = 0;
         window.addEventListener('devicemotion', (e) => {
