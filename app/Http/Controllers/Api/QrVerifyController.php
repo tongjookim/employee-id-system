@@ -22,14 +22,17 @@ class QrVerifyController extends Controller
         $isExpired = $employee && $employee->isQrExpired();
         $isValid = $employee && !$isExpired;
 
-        QrAccessLog::create([
-            'employee_id' => $employee?->id ?? 0,
-            'qr_token'    => $token,
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
-            'access_type' => 'verify',
-            'is_valid'    => $isValid,
-        ]);
+        // ★ 수정됨: 직원 정보가 존재할 때만 로그를 기록하도록 if문 추가
+        if ($employee) {
+            QrAccessLog::create([
+                'employee_id' => $employee->id, // ?? 0 제거
+                'qr_token'    => $token,
+                'ip_address'  => $request->ip(),
+                'user_agent'  => $request->userAgent(),
+                'access_type' => 'verify',
+                'is_valid'    => $isValid,
+            ]);
+        }
 
         if (!$employee) {
             return view('user.qr_invalid', ['reason' => 'not_found']);
@@ -54,14 +57,17 @@ class QrVerifyController extends Controller
         $isExpired = $employee && $employee->isQrExpired();
         $isValid = $employee && !$isExpired;
 
-        QrAccessLog::create([
-            'employee_id' => $employee?->id ?? 0,
-            'qr_token'    => $token,
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
-            'access_type' => 'scan',
-            'is_valid'    => $isValid,
-        ]);
+        // ★ 수정됨: 직원 정보가 존재할 때만 로그를 기록하도록 if문 추가
+        if ($employee) {
+            QrAccessLog::create([
+                'employee_id' => $employee->id, // ?? 0 제거
+                'qr_token'    => $token,
+                'ip_address'  => $request->ip(),
+                'user_agent'  => $request->userAgent(),
+                'access_type' => 'scan',
+                'is_valid'    => $isValid,
+            ]);
+        }
 
         if (!$employee) {
             return response()->json([
