@@ -55,6 +55,7 @@ CREATE TABLE `employees` (
     `address` TEXT NULL COMMENT '주소',
     `qr_token` VARCHAR(64) NOT NULL UNIQUE COMMENT 'QR 고유 토큰',
     `qr_generated_at` TIMESTAMP NULL COMMENT 'QR 생성 시각',
+    `qr_expires_at` TIMESTAMP NULL COMMENT 'QR 만료 시각',
     `design_template_id` BIGINT UNSIGNED NULL COMMENT '할당된 디자인 템플릿',
     `status` ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
     `created_at` TIMESTAMP NULL,
