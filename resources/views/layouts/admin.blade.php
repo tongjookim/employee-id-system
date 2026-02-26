@@ -50,6 +50,9 @@
             <a href="{{ route('admin.templates.index') }}" class="nav-link {{ request()->routeIs('admin.templates.*') ? 'active' : '' }}">
                 <i class="bi bi-palette"></i> 디자인 관리
             </a>
+            <a href="{{ route('admin.password.form') }}" class="nav-link {{ request()->routeIs('admin.password.*') ? 'active' : '' }}">
+                <i class="bi bi-key"></i> 비밀번호 변경
+            </a>
             <hr class="border-secondary mx-3">
             <form action="{{ route('admin.logout') }}" method="POST" class="px-3">
                 @csrf
