@@ -104,4 +104,9 @@ class IdCardController extends Controller
     {
         return view('user.guide');
     }
+
+    public function scanner()
+    {
+        return view('user.scanner');
+    }
 }
