@@ -19,7 +19,7 @@ class IdCardRenderService
      * 사원증 이미지 합성 (GD Library)
      * @return string PNG 이미지 바이너리
      */
-    public function renderImage(Employee $employee): string
+    public function renderImage(Employee $employee, bool $withWatermark = false): string
     {
         $template = $employee->getActiveTemplate();
         if (!$template) {
@@ -57,11 +57,11 @@ class IdCardRenderService
             }
         }
 
-        // ★ PNG 출력 바로 윗부분에 아래 코드를 추가합니다.
+        // 워터마크 추가
         if ($withWatermark) {
             $this->applyWatermark($canvas, $employee);
         }
-
+        
         // PNG 출력
         ob_start();
         imagepng($canvas, null, 6);
