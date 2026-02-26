@@ -36,6 +36,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('templates', DesignTemplateController::class)->except('show');
         Route::get('templates/{template}/mapping', [DesignTemplateController::class, 'mapping'])->name('templates.mapping');
         Route::post('templates/{template}/mapping', [DesignTemplateController::class, 'saveMappings'])->name('templates.save-mappings');
+
+        // 관리자 패스워드 변경
+        Route::get('password', [AdminAuthController::class, 'showChangePasswordForm'])->name('password.form');
+        Route::post('password', [AdminAuthController::class, 'changePassword'])->name('password.update');
     });
 });
 
@@ -52,6 +56,8 @@ Route::prefix('user')->name('user.')->group(function () {
         Route::get('idcard/download', [IdCardController::class, 'download'])->name('idcard.download');
         Route::get('idcard/qr-data',  [IdCardController::class, 'qrData'])->name('idcard.qr-data');
         Route::get('guide',           [IdCardController::class, 'guide'])->name('guide');
+        Route::get('password', [UserAuthController::class, 'showChangePasswordForm'])->name('password.form');
+        Route::post('password', [UserAuthController::class, 'changePassword'])->name('password.update');
     });
 });
 
