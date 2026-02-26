@@ -165,6 +165,7 @@
     <div class="top-bar">
         <span class="name">{{ $employee->name }}</span>
         <div>
+            <a href="{{ route('user.password.form') }}" style="margin-right:.8rem;">비번변경</a>
             <a href="{{ route('user.guide') }}">안내</a>
             <form action="{{ route('user.logout') }}" method="POST" style="display:inline;">
                 @csrf
