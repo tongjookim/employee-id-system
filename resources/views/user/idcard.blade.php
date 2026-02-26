@@ -224,8 +224,8 @@
     </div>
 
     <script>
-// ══════════════════════════════════════
-    // ★ 보안: 키보드 단축키 및 이미지 저장 차단
+    // ══════════════════════════════════════
+    // ★ 보안: 키보드 단축키 차단 및 드래그 방지
     // ══════════════════════════════════════
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && ['c','a','s','p','u'].includes(e.key.toLowerCase())) { e.preventDefault(); return false; }
@@ -240,19 +240,19 @@
     // QR 시스템 및 타이머
     // ══════════════════════════════════════
     const QR_TTL = {{ $qrTtl }};
-    
-    // [핵심 수정] 서버의 절대 시간이 아닌, '기기 현재 시간 + 남은 초'로 만료 시간 설정 (기기 시간 오류 무시)
     let qrExpiresAt = new Date(Date.now() + ({{ $qrRemaining }} * 1000));
     
     let qrImageSrc = '';
     let refreshing = false;
+    let errorCooldown = false; 
+
     const renderData = @json($renderData);
     const bgImg = document.getElementById('bgImg');
     const overlay = document.getElementById('overlay');
 
     bgImg.onload = function() { renderFields(); };
 
-    // 카드 실드 클릭 → QR 확대
+    // 카드 실드 클릭 시 QR 확대
     document.getElementById('cardShield').addEventListener('click', function(e) {
         const card = document.getElementById('idCard');
         const scale = card.offsetWidth / renderData.template.canvas_width;
@@ -302,8 +302,6 @@
 
     window.addEventListener('resize', renderFields);
 
-    let errorCooldown = false; // 무한 재요청 멈춤(프리즈) 방지 플래그
-
     function updateTimer() {
         if (refreshing || errorCooldown) return;
 
@@ -331,33 +329,31 @@
         
         const timerText = document.getElementById('timerText');
         const overlayText = document.getElementById('overlayTimerText');
-        
         if (timerText) timerText.textContent = '갱신중…';
         if (overlayText) overlayText.textContent = '갱신중…';
 
-        fetch('{{ route("user.idcard.qr-data") }}?_t=' + Date.now(), {
+        // ★ 절대경로 및 타임스탬프로 HTTP/HTTPS 혼합문제 및 캐싱 완벽 차단
+        const targetUrl = '/user/idcard/qr-data?_t=' + Date.now();
+
+        fetch(targetUrl, {
             method: 'GET',
-            credentials: 'same-origin', // 세션 유지 보장
             headers: { 
                 'X-Requested-With': 'XMLHttpRequest', 
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json' 
             },
             cache: 'no-store'
         })
-        .then(r => {
-            // 세션이 끊겨 로그인 페이지로 리다이렉트된 경우
+        .then(async r => {
+            // 세션 만료 시 로그인 페이지로 안전하게 이동
             if (r.redirected && r.url.includes('login')) {
-                alert('보안을 위해 세션이 만료되었습니다. 다시 로그인해주세요.');
-                window.location.href = '{{ route("user.login") }}';
+                alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+                window.location.href = '/user/login';
                 throw new Error('Session Expired');
             }
-            if (!r.ok) throw new Error('서버 통신 오류 (' + r.status + ')');
-            
-            // HTML 오류 페이지가 넘어오는 경우 방어
-            const contentType = r.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                throw new Error('JSON 형식이 아닙니다.');
+            if (!r.ok) {
+                const errText = await r.text();
+                console.error('서버 내부 에러 로그:', errText);
+                throw new Error('서버 통신 오류 (' + r.status + ')');
             }
             return r.json();
         })
@@ -366,6 +362,7 @@
             const ttl = data.ttl_seconds || QR_TTL;
             qrExpiresAt = new Date(Date.now() + (ttl * 1000));
 
+            // 데이터 동기화 (화면 리사이즈 시 예전 QR로 되돌아가는 것 방지)
             if (typeof renderData !== 'undefined' && renderData.fields) {
                 const qrField = renderData.fields.find(f => f.field_type === 'qr_code');
                 if (qrField) qrField.value = data.qr_image;
@@ -381,14 +378,14 @@
             updateTimer();
         })
         .catch((e) => { 
-            console.error('QR 갱신 실패:', e);
+            console.error('QR 갱신 실패 상세정보:', e);
             if (timerText) timerText.textContent = '갱신 실패';
             if (overlayText) overlayText.textContent = '갱신 실패';
             
             refreshing = false;
             errorCooldown = true; 
             
-            // 실패 시 미친듯이 재요청하지 않고, 3초 뒤에 여유있게 1번 다시 시도
+            // 오류 시 3초 후 재시도
             setTimeout(() => {
                 errorCooldown = false;
                 refreshQr();
@@ -397,12 +394,12 @@
     }
 
     setInterval(updateTimer, 1000);
-    updateTimer(); // 페이지 로드 즉시 타이머 1회 실행
+    updateTimer();
 
     function showQr() { document.getElementById('qrLargeImg').src = qrImageSrc; document.getElementById('qrOverlay').classList.add('show'); }
     function hideQr() { document.getElementById('qrOverlay').classList.remove('show'); }
 
-    // 스마트폰 흔들기 감지
+    // 흔들기 액션
     if (window.DeviceMotionEvent) {
         let lastShake = 0, lastX = 0, lastY = 0, lastZ = 0;
         window.addEventListener('devicemotion', (e) => {
