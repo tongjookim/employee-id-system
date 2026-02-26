@@ -57,6 +57,11 @@ class IdCardRenderService
             }
         }
 
+        // ★ PNG 출력 바로 윗부분에 아래 코드를 추가합니다.
+        if ($withWatermark) {
+            $this->applyWatermark($canvas, $employee);
+        }
+
         // PNG 출력
         ob_start();
         imagepng($canvas, null, 6);
@@ -338,5 +343,30 @@ class IdCardRenderService
 
         // 시스템 폰트 폴백
         return $this->findSystemKoreanFont();
+    }
+
+    /**
+     * 다운로드용 워터마크 합성
+     */
+    private function applyWatermark(\GdImage $canvas, Employee $employee): void
+    {
+        $watermarkText = $employee->employee_number . ' / ' . now()->format('Y-m-d H:i');
+        $fontSize = 14;
+        $fontPath = $this->getFontPath(null, false); // 기본 한글 폰트 가져오기
+
+        // 반투명 색상 생성 (알파값 0~127: 127이 완전 투명)
+        $color = imagecolorallocatealpha($canvas, 150, 150, 150, 80);
+
+        if ($fontPath && file_exists($fontPath)) {
+            $width = imagesx($canvas);
+            $height = imagesy($canvas);
+
+            // 캔버스 전체에 사선(30도)으로 워터마크 반복 배치
+            for ($y = 50; $y < $height + 200; $y += 150) {
+                for ($x = -50; $x < $width; $x += 250) {
+                    imagettftext($canvas, $fontSize, 30, $x, $y, $color, $fontPath, $watermarkText);
+                }
+            }
+        }
     }
 }
