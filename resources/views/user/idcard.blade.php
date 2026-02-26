@@ -347,7 +347,8 @@
         // ★ 추가: 확대된 QR 화면(오버레이)의 텍스트도 '갱신중…'으로 변경
         document.getElementById('overlayTimerText').textContent = '갱신중…';
 
-        fetch('{{ route("user.idcard.qr-data") }}', {
+        // [수정 1] URL 끝에 타임스탬프(?_t=...)를 붙여 브라우저 캐싱을 완벽히 차단합니다.
+        fetch('{{ route("user.idcard.qr-data") }}?_t=' + Date.now(), {
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Cache-Control': 'no-cache',
@@ -359,6 +360,11 @@
             qrImageSrc = data.qr_image;
             qrExpiresAt = new Date(data.expires_at);
 
+            // [수정 2] 화면 리사이즈 시 예전 QR로 덮어씌워지는 것을 막기 위해 원본 데이터도 갱신합니다.
+            const qrField = renderData.fields.find(f => f.field_type === 'qr_code');
+            if (qrField) qrField.value = data.qr_image;
+
+            // DOM 이미지 교체
             const cardQr = document.getElementById('cardQrImg');
             if (cardQr) cardQr.src = data.qr_image;
             document.getElementById('qrLargeImg').src = data.qr_image;
