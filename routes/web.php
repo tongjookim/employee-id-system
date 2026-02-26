@@ -58,6 +58,7 @@ Route::prefix('user')->name('user.')->group(function () {
         Route::get('guide',           [IdCardController::class, 'guide'])->name('guide');
         Route::get('password', [UserAuthController::class, 'showChangePasswordForm'])->name('password.form');
         Route::post('password', [UserAuthController::class, 'changePassword'])->name('password.update');
+        Route::get('scanner', [IdCardController::class, 'scanner'])->name('scanner');
     });
 });
 
